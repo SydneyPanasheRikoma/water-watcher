@@ -77,8 +77,6 @@ export default function CompaniesPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
-  if (id) return <CompanyDetail companyId={id} />;
-
   const filtered = useMemo(() =>
     companies.filter(c => {
       const matchSearch = c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -86,6 +84,8 @@ export default function CompaniesPage() {
       const matchStatus = statusFilter === "all" || c.status === statusFilter;
       return matchSearch && matchStatus;
     }), [search, statusFilter]);
+
+  if (id) return <CompanyDetail companyId={id} />;
 
   return (
     <div className="container py-8 space-y-6">
