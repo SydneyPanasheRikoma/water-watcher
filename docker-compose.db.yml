@@ -1,0 +1,23 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: waterwatcher-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: waterwatcher
+      POSTGRES_USER: waterwatcher
+      POSTGRES_PASSWORD: waterwatcher
+      TZ: UTC
+    ports:
+      - "5432:5432"
+    volumes:
+      - waterwatcher_pgdata:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U waterwatcher -d waterwatcher"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  waterwatcher_pgdata:

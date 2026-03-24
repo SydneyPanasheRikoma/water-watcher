@@ -1,4 +1,4 @@
-import { villages, companies } from "@/lib/data";
+import { useCommunityData } from "@/hooks/use-water-data";
 import { cn } from "@/lib/utils";
 import { TrendingDown, TrendingUp, Minus, MapPin, Users } from "lucide-react";
 
@@ -9,6 +9,17 @@ function TrendIcon({ trend }: { trend: string }) {
 }
 
 export default function CommunityPage() {
+  const { data, isLoading, isError } = useCommunityData();
+
+  if (isLoading) {
+    return <div className="container py-8 text-muted-foreground">Loading community data...</div>;
+  }
+
+  if (isError || !data) {
+    return <div className="container py-8 text-destructive">Failed to load community data.</div>;
+  }
+
+  const { villages, companies } = data;
   const affectedCount = villages.filter(v => v.status !== "safe").length;
 
   return (

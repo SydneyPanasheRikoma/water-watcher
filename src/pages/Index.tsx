@@ -1,33 +1,24 @@
-import { useEffect, useState } from "react";
-import { Droplets, Layers, Building2, AlertTriangle, TrendingDown } from "lucide-react";
+import { Droplets, Building2, AlertTriangle, TrendingDown } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
 import { WaterGauge } from "@/components/WaterGauge";
 import { StatCard } from "@/components/StatCard";
 import { AlertsPanel } from "@/components/AlertsPanel";
 import { CompanyCard } from "@/components/CompanyCard";
-import { companies, generateAlerts, getKeyStats, getUsageTrendData, getWaterEqualityIndex } from "@/lib/data";
+import { useDashboardData } from "@/hooks/use-water-data";
 
 export default function Dashboard() {
-  const [wqi, setWqi] = useState(getWaterEqualityIndex());
-  const [stats, setStats] = useState(getKeyStats());
-  const [alerts, setAlerts] = useState(generateAlerts());
-  const trendData = getUsageTrendData();
+  const { data, isLoading, isError } = useDashboardData();
 
-  // Simulate live data updates
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setWqi(prev => Math.max(30, Math.min(95, prev + (Math.random() - 0.5) * 3)));
-      setStats(prev => ({
-        ...prev,
-        extractedToday: +(prev.extractedToday + (Math.random() - 0.4) * 0.3).toFixed(1),
-        groundwaterAvg: +(prev.groundwaterAvg + (Math.random() - 0.5) * 0.1).toFixed(1),
-      }));
-    }, 4000);
-    return () => clearInterval(interval);
-  }, []);
+  if (isLoading) {
+    return <div className="container py-8 text-muted-foreground">Loading dashboard data...</div>;
+  }
 
-  const overallStatus = wqi >= 70 ? "safe" : wqi >= 50 ? "warning" : "critical";
-  const sortedCompanies = [...companies].sort((a, b) => b.score - a.score).slice(0, 5);
+  if (isError || !data) {
+    return <div className="container py-8 text-destructive">Failed to load dashboard data.</div>;
+  }
+
+  const overallStatus = data.wqi >= 70 ? "safe" : data.wqi >= 50 ? "warning" : "critical";
+  const sortedCompanies = [...data.companies].sort((a, b) => b.score - a.score).slice(0, 5);
 
   return (
     <div className="container py-8 space-y-8">
@@ -50,7 +41,7 @@ export default function Dashboard() {
               System Status: <span className="font-semibold capitalize">{overallStatus}</span>
             </div>
           </div>
-          <WaterGauge value={Math.round(wqi)} size={180} />
+          <WaterGauge value={Math.round(data.wqi)} size={180} />
         </div>
       </section>
 
@@ -58,27 +49,27 @@ export default function Dashboard() {
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Water Extracted Today"
-          value={stats.extractedToday}
+          value={data.stats.extractedToday}
           unit="MLD"
           icon={<Droplets className="h-5 w-5" />}
         />
         <StatCard
           title="Avg. Groundwater Level"
-          value={stats.groundwaterAvg}
+          value={data.stats.groundwaterAvg}
           unit="m"
           icon={<TrendingDown className="h-5 w-5" />}
-          status={stats.groundwaterAvg > 14 ? "warning" : undefined}
+          status={data.stats.groundwaterAvg > 14 ? "warning" : undefined}
         />
         <StatCard
           title="Active Companies"
-          value={stats.activeCompanies}
+          value={data.stats.activeCompanies}
           icon={<Building2 className="h-5 w-5" />}
         />
         <StatCard
           title="Active Alerts"
-          value={stats.alertsCount}
+          value={data.stats.alertsCount}
           icon={<AlertTriangle className="h-5 w-5" />}
-          status={stats.alertsCount > 3 ? "critical" : stats.alertsCount > 0 ? "warning" : undefined}
+          status={data.stats.alertsCount > 3 ? "critical" : data.stats.alertsCount > 0 ? "warning" : undefined}
         />
       </section>
 
@@ -87,7 +78,7 @@ export default function Dashboard() {
         <div className="bg-card rounded-xl card-elevated p-5">
           <h3 className="text-base font-semibold text-foreground mb-4">Water Usage Trends</h3>
           <ResponsiveContainer width="100%" height={260}>
-            <AreaChart data={trendData}>
+            <AreaChart data={data.trendData}>
               <defs>
                 <linearGradient id="colorIndustrial" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="hsl(210,100%,45%)" stopOpacity={0.3} />
@@ -111,7 +102,7 @@ export default function Dashboard() {
         <div className="bg-card rounded-xl card-elevated p-5">
           <h3 className="text-base font-semibold text-foreground mb-4">Groundwater Level</h3>
           <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={trendData}>
+            <LineChart data={data.trendData}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(210,20%,90%)" />
               <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="hsl(213,15%,50%)" />
               <YAxis tick={{ fontSize: 12 }} stroke="hsl(213,15%,50%)" unit="m" />
@@ -124,7 +115,7 @@ export default function Dashboard() {
 
       {/* Alerts + Top Companies */}
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <AlertsPanel alerts={alerts} />
+        <AlertsPanel alerts={data.alerts} />
         <div className="bg-card rounded-xl card-elevated p-5">
           <h3 className="text-base font-semibold text-foreground mb-4">Top Companies by Score</h3>
           {sortedCompanies.map(c => (

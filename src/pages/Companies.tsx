@@ -1,19 +1,29 @@
 import { useState, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
-import { Search, ArrowLeft, Filter } from "lucide-react";
+import { Search, ArrowLeft } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { companies } from "@/lib/data";
+import { useCompaniesData, useCompanyData } from "@/hooks/use-water-data";
 import { CompanyCard, StatusBadge } from "@/components/CompanyCard";
 import { cn } from "@/lib/utils";
 
 function CompanyDetail({ companyId }: { companyId: string }) {
-  const company = companies.find(c => c.id === companyId);
+  const { data: company, isLoading, isError } = useCompanyData(companyId);
+
+  if (isLoading) return <p className="text-muted-foreground p-8">Loading company details...</p>;
+  if (isError) return <p className="text-destructive p-8">Failed to load company details.</p>;
   if (!company) return <p className="text-muted-foreground p-8">Company not found.</p>;
 
   const scoreColor =
     company.score >= 80 ? "status-safe" :
     company.score >= 60 ? "status-warning" :
     "status-critical";
+
+  const summaryStats: Array<{ label: string; value: string | number; className?: string }> = [
+    { label: "Daily Usage", value: `${company.dailyUsageMLD} MLD` },
+    { label: "Responsibility Score", value: `${company.score}/100`, className: scoreColor },
+    { label: "Violations", value: company.violations },
+    { label: "Water Credits", value: company.credits },
+  ];
 
   return (
     <div className="container py-8 space-y-6">
@@ -37,15 +47,10 @@ function CompanyDetail({ companyId }: { companyId: string }) {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {[
-          { label: "Daily Usage", value: `${company.dailyUsageMLD} MLD` },
-          { label: "Responsibility Score", value: `${company.score}/100`, className: scoreColor },
-          { label: "Violations", value: company.violations },
-          { label: "Water Credits", value: company.credits },
-        ].map(s => (
+        {summaryStats.map(s => (
           <div key={s.label} className="bg-card rounded-xl card-elevated p-4">
             <p className="text-xs text-muted-foreground">{s.label}</p>
-            <p className={cn("text-xl font-bold", (s as any).className || "text-foreground")}>{s.value}</p>
+            <p className={cn("text-xl font-bold", s.className || "text-foreground")}>{s.value}</p>
           </div>
         ))}
       </div>
@@ -76,6 +81,7 @@ export default function CompaniesPage() {
   const { id } = useParams();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const { data: companies = [], isLoading, isError } = useCompaniesData();
 
   const filtered = useMemo(() =>
     companies.filter(c => {
@@ -83,9 +89,17 @@ export default function CompaniesPage() {
         c.industry.toLowerCase().includes(search.toLowerCase());
       const matchStatus = statusFilter === "all" || c.status === statusFilter;
       return matchSearch && matchStatus;
-    }), [search, statusFilter]);
+    }), [companies, search, statusFilter]);
 
   if (id) return <CompanyDetail companyId={id} />;
+
+  if (isLoading) {
+    return <div className="container py-8 text-muted-foreground">Loading companies...</div>;
+  }
+
+  if (isError) {
+    return <div className="container py-8 text-destructive">Failed to load companies.</div>;
+  }
 
   return (
     <div className="container py-8 space-y-6">
